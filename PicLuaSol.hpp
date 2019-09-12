@@ -331,28 +331,43 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
     // register free functions
     // namespaceTable.addWrapper<Image, ImageUniquePtr>();
     namespaceTable.set_function("loadImage", pic::loadImage);
+    namespaceTable.set_function("upCastImage", [](Image * _img, sol::this_state _s) {
+        sol::state_view lua(_s);
+        //@TODO: complete this
+        if (_img->pixelTypeID() == pic::PixelRGB8::pixelTypeID())
+        {
+            return sol::make_object(lua, static_cast<pic::ImageRGB8 *>(_img));
+        }
+        else if (_item->pixelTypeID() == pic::PixelRGBA8::pixelTypeID())
+        {
+            return sol::make_object(lua, static_cast<pic::ImageRGBA8 *>(_img));
+        }
+        return sol::make_object(lua, _item);
+    });
 
     // register concrete image types (we only register 32 bit and floating point image types for
     // now...)
-    detail::registerImageType<pic::ImageGray8>("Gray8", namespaceTable);
-    detail::registerImageType<pic::ImageGrayAlpha8>("GrayAlpha8", namespaceTable);
-    detail::registerImageType<pic::ImageAlphaGray8>("AlphaGray8", namespaceTable);
+    //@TODO: uncomment more types once we are fully settled on how this should work...
+    
+    // detail::registerImageType<pic::ImageGray8>("Gray8", namespaceTable);
+    // detail::registerImageType<pic::ImageGrayAlpha8>("GrayAlpha8", namespaceTable);
+    // detail::registerImageType<pic::ImageAlphaGray8>("AlphaGray8", namespaceTable);
     detail::registerImageType<pic::ImageRGB8>("RGB8", namespaceTable);
-    detail::registerImageType<pic::ImageBGR8>("BGR8", namespaceTable);
+    // detail::registerImageType<pic::ImageBGR8>("BGR8", namespaceTable);
     detail::registerImageType<pic::ImageRGBA8>("RGBA8", namespaceTable);
-    detail::registerImageType<pic::ImageBGRA8>("BGRA8", namespaceTable);
-    detail::registerImageType<pic::ImageARGB8>("ARGB8", namespaceTable);
-    detail::registerImageType<pic::ImageABGR8>("ABGR8", namespaceTable);
+    // detail::registerImageType<pic::ImageBGRA8>("BGRA8", namespaceTable);
+    // detail::registerImageType<pic::ImageARGB8>("ARGB8", namespaceTable);
+    // detail::registerImageType<pic::ImageABGR8>("ABGR8", namespaceTable);
 
-    detail::registerImageType<pic::ImageGray32f>("Gray32f", namespaceTable);
-    detail::registerImageType<pic::ImageGrayAlpha32f>("GrayAlpha32f", namespaceTable);
-    detail::registerImageType<pic::ImageAlphaGray32f>("AlphaGray32f", namespaceTable);
-    detail::registerImageType<pic::ImageRGB32f>("RGB32f", namespaceTable);
-    detail::registerImageType<pic::ImageBGR32f>("BGR32f", namespaceTable);
-    detail::registerImageType<pic::ImageRGBA32f>("RGBA32f", namespaceTable);
-    detail::registerImageType<pic::ImageBGRA32f>("BGRA32f", namespaceTable);
-    detail::registerImageType<pic::ImageARGB32f>("ARGB32f", namespaceTable);
-    detail::registerImageType<pic::ImageABGR32f>("ABGR32f", namespaceTable);
+    // detail::registerImageType<pic::ImageGray32f>("Gray32f", namespaceTable);
+    // detail::registerImageType<pic::ImageGrayAlpha32f>("GrayAlpha32f", namespaceTable);
+    // detail::registerImageType<pic::ImageAlphaGray32f>("AlphaGray32f", namespaceTable);
+    // detail::registerImageType<pic::ImageRGB32f>("RGB32f", namespaceTable);
+    // detail::registerImageType<pic::ImageBGR32f>("BGR32f", namespaceTable);
+    // detail::registerImageType<pic::ImageRGBA32f>("RGBA32f", namespaceTable);
+    // detail::registerImageType<pic::ImageBGRA32f>("BGRA32f", namespaceTable);
+    // detail::registerImageType<pic::ImageARGB32f>("ARGB32f", namespaceTable);
+    // detail::registerImageType<pic::ImageABGR32f>("ABGR32f", namespaceTable);
 }
 } // namespace picLua
 
