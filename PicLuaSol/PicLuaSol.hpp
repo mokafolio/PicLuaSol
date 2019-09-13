@@ -338,11 +338,11 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
         {
             return sol::make_object(lua, static_cast<pic::ImageRGB8 *>(_img));
         }
-        else if (_item->pixelTypeID() == pic::PixelRGBA8::pixelTypeID())
+        else if (_img->pixelTypeID() == pic::PixelRGBA8::pixelTypeID())
         {
             return sol::make_object(lua, static_cast<pic::ImageRGBA8 *>(_img));
         }
-        return sol::make_object(lua, _item);
+        return sol::make_object(lua, _img);
     });
 
     // register concrete image types (we only register 32 bit and floating point image types for
