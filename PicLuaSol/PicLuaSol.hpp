@@ -6,16 +6,10 @@
 #include <StickLuaSol/StickLuaSol.hpp>
 #include <sol/sol.hpp>
 
-namespace picLuaSol
+namespace picLua
 {
 STICK_API void registerPic(sol::state_view _lua, const stick::String & _namespace = "");
 STICK_API void registerPic(sol::state_view _lua, sol::table _tbl);
-
-template <typename TO, typename FROM, class C>
-stick::UniquePtr<TO, C> staticUniquePtrCast(stick::UniquePtr<FROM, C> && old)
-{
-    return stick::UniquePtr<TO, C>{ static_cast<TO *>(old.release()) };
-}
 
 namespace detail
 {
@@ -36,9 +30,8 @@ inline void registerBasePixel(const stick::String & _name, sol::table _namespace
     using BasePixel = typename PixelT::BasePixel;
     using ValueType = typename BasePixel::ValueType;
 
-    stick::String name = stick::String::concat("__", _name, "BasePixel");
-    _namespace.new_usertype<BasePixel>(
-        name.cString(),
+    _tbl.new_usertype<BasePixel>(
+        stick::String::concat("__", _name, "BasePixel").cString(),
         "new",
         sol::no_constructor,
         sol::meta_function::equal_to,
@@ -46,7 +39,7 @@ inline void registerBasePixel(const stick::String & _name, sol::table _namespace
         "setChannelValue",
         &BasePixel::setChannelValue,
         "channel",
-        sol::resolve<const ValueType & (stick::UInt32)const>(&BasePixel::channel)
+        sol::resolve<const ValueType & (BasePixel::*)(stick::UInt32)const>(&BasePixel::channel)
     );
 }
 
@@ -74,14 +67,13 @@ struct PixelRegistrator<T, typename std::enable_if<T::ChannelLayout::channelCoun
 
         // _namespace.registerClass(pixelCW);
 
-        stick::String name = stick::String::concat("Pixel", _name);
-        _namespace.new_usertype<T>(name.cString(),
-                                   sol::base_classes,
-                                   sol::bases<typename T::BasePixel>(),
-                                   sol::call_constructor,
-                                   sol::constructors<T(ValueType)>(),
-                                   "setValue",
-                                   sol::resolve<void(ValueType)>(&T::setValue));
+        _tbl.new_usertype<T>(stick::String::concat("Pixel", _name).cString(),
+                             sol::base_classes,
+                             sol::bases<typename T::BasePixel>(),
+                             "new",
+                             sol::constructors<T(ValueType)>(),
+                             "setValue",
+                             sol::resolve<void (T::*)(ValueType)>(&T::setValue));
     }
 };
 
@@ -106,16 +98,15 @@ struct PixelRegistrator<T, typename std::enable_if<T::ChannelLayout::channelCoun
 
         // _namespace.registerClass(pixelCW);
 
-        stick::String name = stick::String::concat("Pixel", _name);
-        _namespace.new_usertype<T>(
-            name.cString(),
+        _tbl.new_usertype<T>(
+            stick::String::concat("Pixel", _name).cString(),
             sol::base_classes,
             sol::bases<typename T::BasePixel>(),
-            sol::call_constructor,
+            "new",
             sol::constructors<T(ValueType), T(ValueType, ValueType)>(),
             "setValue",
-            sol::overload(sol::resolve<void(ValueType)>(&T::setValue),
-                          sol::resolve<void(ValueType, ValueType)>(&T::setValue)));
+            sol::overload(sol::resolve<void (T::*)(ValueType)>(&T::setValue),
+                          sol::resolve<void (T::*)(ValueType, ValueType)>(&T::setValue)));
     }
 };
 
@@ -144,19 +135,19 @@ struct PixelRegistrator<T, typename std::enable_if<T::ChannelLayout::channelCoun
 
         // _namespace.registerClass(pixelCW);
 
-        stick::String name = stick::String::concat("Pixel", _name);
-        _namespace.new_usertype<T>(
-            name.cString(),
+        _tbl.new_usertype<T>(
+            stick::String::concat("Pixel", _name).cString(),
             sol::base_classes,
             sol::bases<typename T::BasePixel>(),
-            sol::call_constructor,
+            "new",
             sol::constructors<T(ValueType),
                               T(ValueType, ValueType),
                               T(ValueType, ValueType, ValueType)>(),
             "setValue",
-            sol::overload(sol::resolve<void(ValueType)>(&T::setValue),
-                          sol::resolve<void(ValueType, ValueType)>(&T::setValue),
-                          sol::resolve<void(ValueType, ValueType, ValueType)>(&T::setValue)));
+            sol::overload(
+                sol::resolve<void (T::*)(ValueType)>(&T::setValue),
+                sol::resolve<void (T::*)(ValueType, ValueType)>(&T::setValue),
+                sol::resolve<void (T::*)(ValueType, ValueType, ValueType)>(&T::setValue)));
     }
 };
 
@@ -191,22 +182,21 @@ struct PixelRegistrator<T, typename std::enable_if<T::ChannelLayout::channelCoun
 
         // _namespace.registerClass(pixelCW);
 
-        stick::String name = stick::String::concat("Pixel", _name);
-        _namespace.new_usertype<T>(
-            name.cString(),
+        _tbl.new_usertype<T>(
+            stick::String::concat("Pixel", _name).cString(),
             sol::base_classes,
             sol::bases<typename T::BasePixel>(),
-            sol::call_constructor,
+            "new",
             sol::constructors<T(ValueType),
                               T(ValueType, ValueType),
                               T(ValueType, ValueType, ValueType),
                               T(ValueType, ValueType, ValueType)>(),
             "setValue",
-            sol::overload(
-                sol::resolve<void(ValueType)>(&T::setValue),
-                sol::resolve<void(ValueType, ValueType)>(&T::setValue),
-                sol::resolve<void(ValueType, ValueType, ValueType)>(&T::setValue),
-                sol::resolve<void(ValueType, ValueType, ValueType, ValueType)>(&T::setValue)));
+            sol::overload(sol::resolve<void (T::*)(ValueType)>(&T::setValue),
+                          sol::resolve<void (T::*)(ValueType, ValueType)>(&T::setValue),
+                          sol::resolve<void (T::*)(ValueType, ValueType, ValueType)>(&T::setValue),
+                          sol::resolve<void (T::*)(ValueType, ValueType, ValueType, ValueType)>(
+                              &T::setValue)));
     }
 };
 
@@ -214,7 +204,7 @@ template <class ImageT>
 inline void registerImageType(const stick::String & _name, sol::table _namespace)
 {
     using PixelType = typename ImageT::Pixel;
-    // using ValueType = typename PixelType::ValueType;
+    using ValueType = typename PixelType::ValueType;
 
     // register the pixel type
     PixelRegistrator<PixelType>::registerPixel(_name, _namespace);
@@ -237,23 +227,21 @@ inline void registerImageType(const stick::String & _name, sol::table _namespace
 
     // _namespace.registerClass(imageCW);
 
-    stick::String name = stick::String::concat("Image", _name);
-    _namespace.new_usertype<ImageT>(
-        name.cString(),
+    _tbl.new_usertype<ImageT>(
+        stick::String::concat("Image", _name).cString(),
         sol::base_classes,
         sol::bases<pic::Image>(),
-        sol::call_constructor,
+        "new",
         sol::constructors<ImageT(),
                           ImageT(stick::Size, stick::Size),
                           ImageT(stick::Size, stick::Size, stick::Size)>(),
         "pixel",
-        sol::overload(
-            sol::resolve<PixelType &(stick::Size, stick::Size)>(&ImageT::pixel),
-            sol::resolve<PixelType &(stick::Size, stick::Size, stick::Size)>(&ImageT::pixel)));
+        sol::overload(sol::resolve<PixelType & (ImageT::*)(stick::Size, stick::Size)>(&T::pixel),
+                      sol::resolve<PixelType & (ImageT::*)(stick::Size, stick::Size, stick::Size)>(
+                          &T::pixel)));
 }
 } // namespace detail
 
-#ifdef PICLUASOL_IMPLEMENTATION
 STICK_API void registerPic(sol::state_view _lua, const stick::String & _namespace)
 {
     registerPic(_lua, stickLuaSol::ensureNamespaceTable(_lua, _lua.globals(), _namespace));
@@ -261,6 +249,7 @@ STICK_API void registerPic(sol::state_view _lua, const stick::String & _namespac
 
 STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
 {
+    using namespace luanatic;
     using namespace pic;
     using namespace stick;
 
@@ -296,19 +285,20 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
     //     .addMemberFunction("saveFile", LUANATIC_FUNCTION(&Image::saveFile));
     // namespaceTable.registerClass(imageCW);
     _tbl.new_usertype<Image>(
-        "Image",
+        Image,
+        sol::base_classes,
+        sol::bases<pic::Image>(),
         "new",
         sol::no_constructor,
         "resize",
-        sol::overload(sol::resolve<void(Size, Size)>(&Image::resize),
-                      sol::resolve<void(Size, Size, Size, Size)>(&Image::resize),
-                      [](Image * _self, Size _w, Size _h, Size _d) { _self->resize(_w, _h, _d); }),
+        sol::overload(sol::resolve<void (Image::*)(Size, Size)>(&Image::resize),
+                      sol::resolve<void (Image::*)(Size, Size, Size)>(&Image::resize)),
         "width",
         &Image::width,
         "height",
         &Image::height,
-        "depth",
-        &Image::depth,
+        "deph",
+        &Image::deph,
         "channelCount",
         &Image::channelCount,
         "pixelCount",
@@ -335,62 +325,50 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
         &Image::flip,
         "swapChannels",
         &Image::swapChannels,
-        "save",
-        &Image::save);
+        "saveFile",
+        &Image::saveFile);
 
     // register free functions
     // namespaceTable.addWrapper<Image, ImageUniquePtr>();
-    _tbl.set_function("loadImage", [](const char * _uri, sol::this_state _s) {
+    namespaceTable.set_function("loadImage", pic::loadImage);
+    namespaceTable.set_function("upCastImage", [](Image * _img, sol::this_state _s) {
         sol::state_view lua(_s);
-        auto res = pic::loadImage(_uri);
-        if (res)
+        //@TODO: complete this
+        if (_img->pixelTypeID() == pic::PixelRGB8::pixelTypeID())
         {
-            auto imgptr = std::move(res.get());
-            if (imgptr->pixelTypeID() == PixelRGB8::TypeInfo::typeID())
-            {
-                printf("pushing rgb8 %lu %lu\n", imgptr->width(), imgptr->height());
-                return sol::make_object(lua, static_cast<ImageRGB8 *>(imgptr.get()));
-            }
-            else if (imgptr->pixelTypeID() == PixelRGBA8::TypeInfo::typeID())
-            {
-                printf("pushing rgba8 %lu %lu\n", imgptr->width(), imgptr->height());
-                // return sol::make_object(lua, static_cast<ImageRGBA8 *>(imgptr.get()));
-                return sol::make_object(lua, std::move(staticUniquePtrCast<ImageRGBA8>(std::move(imgptr))));
-            }
-            else
-            {
-                printf("psuhing error\n");
-                return sol::make_object(lua, res.error());
-            }
+            return sol::make_object(lua, static_cast<pic::ImageRGB8 *>(_img));
         }
-        else
-            return sol::make_object(lua, res.error());
+        else if (_item->pixelTypeID() == pic::PixelRGBA8::pixelTypeID())
+        {
+            return sol::make_object(lua, static_cast<pic::ImageRGBA8 *>(_img));
+        }
+        return sol::make_object(lua, _item);
     });
 
     // register concrete image types (we only register 32 bit and floating point image types for
     // now...)
-    // detail::registerImageType<pic::ImageGray8>("Gray8", _tbl);
-    // detail::registerImageType<pic::ImageGrayAlpha8>("GrayAlpha8", _tbl);
-    // detail::registerImageType<pic::ImageAlphaGray8>("AlphaGray8", _tbl);
-    detail::registerImageType<pic::ImageRGB8>("RGB8", _tbl);
-    // detail::registerImageType<pic::ImageBGR8>("BGR8", _tbl);
-    detail::registerImageType<pic::ImageRGBA8>("RGBA8", _tbl);
-    // detail::registerImageType<pic::ImageBGRA8>("BGRA8", _tbl);
-    // detail::registerImageType<pic::ImageARGB8>("ARGB8", _tbl);
-    // detail::registerImageType<pic::ImageABGR8>("ABGR8", _tbl);
+    //@TODO: uncomment more types once we are fully settled on how this should work...
+    
+    // detail::registerImageType<pic::ImageGray8>("Gray8", namespaceTable);
+    // detail::registerImageType<pic::ImageGrayAlpha8>("GrayAlpha8", namespaceTable);
+    // detail::registerImageType<pic::ImageAlphaGray8>("AlphaGray8", namespaceTable);
+    detail::registerImageType<pic::ImageRGB8>("RGB8", namespaceTable);
+    // detail::registerImageType<pic::ImageBGR8>("BGR8", namespaceTable);
+    detail::registerImageType<pic::ImageRGBA8>("RGBA8", namespaceTable);
+    // detail::registerImageType<pic::ImageBGRA8>("BGRA8", namespaceTable);
+    // detail::registerImageType<pic::ImageARGB8>("ARGB8", namespaceTable);
+    // detail::registerImageType<pic::ImageABGR8>("ABGR8", namespaceTable);
 
-    // detail::registerImageType<pic::ImageGray32f>("Gray32f", _tbl);
-    // detail::registerImageType<pic::ImageGrayAlpha32f>("GrayAlpha32f", _tbl);
-    // detail::registerImageType<pic::ImageAlphaGray32f>("AlphaGray32f", _tbl);
-    // detail::registerImageType<pic::ImageRGB32f>("RGB32f", _tbl);
-    // detail::registerImageType<pic::ImageBGR32f>("BGR32f", _tbl);
-    // detail::registerImageType<pic::ImageRGBA32f>("RGBA32f", _tbl);
-    // detail::registerImageType<pic::ImageBGRA32f>("BGRA32f", _tbl);
-    // detail::registerImageType<pic::ImageARGB32f>("ARGB32f", _tbl);
-    // detail::registerImageType<pic::ImageABGR32f>("ABGR32f", _tbl);
+    // detail::registerImageType<pic::ImageGray32f>("Gray32f", namespaceTable);
+    // detail::registerImageType<pic::ImageGrayAlpha32f>("GrayAlpha32f", namespaceTable);
+    // detail::registerImageType<pic::ImageAlphaGray32f>("AlphaGray32f", namespaceTable);
+    // detail::registerImageType<pic::ImageRGB32f>("RGB32f", namespaceTable);
+    // detail::registerImageType<pic::ImageBGR32f>("BGR32f", namespaceTable);
+    // detail::registerImageType<pic::ImageRGBA32f>("RGBA32f", namespaceTable);
+    // detail::registerImageType<pic::ImageBGRA32f>("BGRA32f", namespaceTable);
+    // detail::registerImageType<pic::ImageARGB32f>("ARGB32f", namespaceTable);
+    // detail::registerImageType<pic::ImageABGR32f>("ABGR32f", namespaceTable);
 }
-#endif // PICLUASOL_IMPLEMENTATION
-
-} // namespace picLuaSol
+} // namespace picLua
 
 #endif // PICLUASOL_PICLUASOL_HPP
