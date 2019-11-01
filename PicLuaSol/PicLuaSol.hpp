@@ -368,16 +368,16 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
     // });
 
     _tbl.set_function("loadImage", pic::loadImage);
-    _tbl.set_function("upCastImage", [](Image * _img, sol::this_state _s) {
+    _tbl.set_function("upCastImage", [](pic::ImageUniquePtr & _img, sol::this_state _s) {
         sol::state_view lua(_s);
         //@TODO: complete this
         if (_img->pixelTypeID() == pic::PixelRGB8::pixelTypeID())
         {
-            return sol::make_object(lua, static_cast<pic::ImageRGB8 *>(_img));
+            return sol::make_object(lua, std::move(staticUniquePtrCast<ImageRGB8>(std::move(_img))));
         }
         else if (_img->pixelTypeID() == pic::PixelRGBA8::pixelTypeID())
         {
-            return sol::make_object(lua, static_cast<pic::ImageRGBA8 *>(_img));
+            return sol::make_object(lua, std::move(staticUniquePtrCast<ImageRGBA8>(std::move(_img))));
         }
         return sol::make_object(lua, _img);
     });
