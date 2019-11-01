@@ -366,7 +366,7 @@ STICK_API void registerPic(sol::state_view _lua, sol::table _tbl)
     //     else
     //         return sol::make_object(lua, res.error());
     // });
-
+    
     _tbl.set_function("loadImage", [](const char * _path, sol::this_state _s)
     {
         sol::state_view lua(_s);
